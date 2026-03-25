@@ -10,15 +10,21 @@ if (!fs.existsSync(uploadsDir)) {
 const storage = multer.diskStorage({
   destination: (_req, _file, cb) => cb(null, uploadsDir),
   filename: (_req, file, cb) => {
-    const ext = path.extname(file.originalname || "").toLowerCase();
-    const safeExt = ext || ".jpg";
+    const extMap = {
+      "image/jpeg": ".jpg",
+      "image/png": ".png",
+      "image/gif": ".gif",
+    };
+
+    const safeExt = extMap[file.mimetype] || path.extname(file.originalname || "").toLowerCase() || ".jpg";
     cb(null, `${Date.now()}-${Math.round(Math.random() * 1e9)}${safeExt}`);
   },
 });
 
 const fileFilter = (_req, file, cb) => {
-  if (!file.mimetype || !file.mimetype.startsWith("image/")) {
-    cb(new Error("Only image files are allowed."), false);
+  const allowedTypes = new Set(["image/jpeg", "image/png", "image/gif"]);
+  if (!file.mimetype || !allowedTypes.has(file.mimetype)) {
+    cb(new Error("Only JPG, PNG, and GIF images are allowed."), false);
     return;
   }
   cb(null, true);
@@ -27,6 +33,6 @@ const fileFilter = (_req, file, cb) => {
 module.exports = multer({
   storage,
   fileFilter,
-  limits: { fileSize: 2 * 1024 * 1024 }, // 2MB
+  limits: { fileSize: 5 * 1024 * 1024 }, // 5MB
 });
 

@@ -161,6 +161,28 @@ a.button-link:hover { background: rgba(124,92,255,0.28); }
   font-size: 16px;
 }
 
+.profilePicUpload {
+  margin-top: 6px;
+}
+
+.profilePicUpload h3 {
+  margin: 12px 0 10px;
+  font-size: 16px;
+}
+
+#uploadProgressWrap {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  flex-wrap: wrap;
+  margin-top: 10px;
+}
+
+#uploadProgressWrap progress {
+  width: 220px;
+  height: 14px;
+}
+
 .output {
   margin: 0;
   padding: 12px;

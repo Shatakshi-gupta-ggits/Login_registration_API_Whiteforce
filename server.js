@@ -85,6 +85,23 @@ require("./app/routes/auth.routes")(app);
 require("./app/routes/user.routes")(app);
 require("./app/routes/admin.routes")(app);
 
+// Multer upload errors -> client-friendly JSON
+// (e.g. invalid mimetype, LIMIT_FILE_SIZE)
+app.use((err, _req, res, _next) => {
+  const msg = err?.message || "Upload failed.";
+  const isMulter =
+    err?.code === "LIMIT_FILE_SIZE" ||
+    err?.name === "MulterError" ||
+    /JPG|PNG|GIF|Only/i.test(msg);
+
+  if (isMulter) {
+    return res.status(400).send({ message: msg });
+  }
+
+  // Fallback for other errors
+  return res.status(500).send({ message: msg });
+});
+
 // set port, listen for requests
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {

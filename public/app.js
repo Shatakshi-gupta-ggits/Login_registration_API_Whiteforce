@@ -10,6 +10,56 @@ const profileMonthlySalary = document.getElementById("profileMonthlySalary");
 const boardMessage = document.getElementById("boardMessage");
 const userActions = document.getElementById("userActions");
 
+const profilePicInput = document.getElementById("profilePicInput");
+const profilePicPreviewImg = document.getElementById("profilePicPreviewImg");
+const profilePicPreviewHint = document.getElementById("profilePicPreviewHint");
+const uploadProfilePicBtn = document.getElementById("uploadProfilePicBtn");
+const uploadProgressWrap = document.getElementById("uploadProgressWrap");
+const uploadProgressBar = document.getElementById("uploadProgressBar");
+const uploadProgressText = document.getElementById("uploadProgressText");
+const uploadMessage = document.getElementById("uploadMessage");
+
+function isProfilePicFileAllowed(file) {
+  if (!file) return { ok: false, message: "Please choose an image file first." };
+
+  const maxBytes = 5 * 1024 * 1024; // 5MB
+  if (file.size > maxBytes) return { ok: false, message: "Image must be <= 5MB." };
+
+  const allowedTypes = new Set(["image/jpeg", "image/png", "image/gif"]);
+  if (file.type && allowedTypes.has(file.type)) return { ok: true };
+
+  // Fallback: trust extension if browser didn't provide a type.
+  const ext = String(file.name || "").toLowerCase().split(".").pop();
+  if (["jpg", "jpeg", "png", "gif"].includes(ext)) return { ok: true };
+
+  return { ok: false, message: "Only JPG, PNG, and GIF images are allowed." };
+}
+
+function setUploading(isUploading) {
+  if (!profilePicInput || !uploadProfilePicBtn) return;
+  profilePicInput.disabled = isUploading;
+  uploadProfilePicBtn.disabled = isUploading;
+
+  if (isUploading) {
+    uploadMessage.textContent = "";
+    uploadProgressWrap.style.display = "flex";
+  }
+}
+
+function resetUploadUI() {
+  if (profilePicInput) profilePicInput.value = "";
+  if (profilePicPreviewImg) {
+    profilePicPreviewImg.src = "";
+    profilePicPreviewImg.style.display = "none";
+  }
+  if (profilePicPreviewHint) profilePicPreviewHint.style.display = "inline";
+
+  if (uploadProgressWrap) uploadProgressWrap.style.display = "none";
+  if (uploadProgressBar) uploadProgressBar.value = 0;
+  if (uploadProgressText) uploadProgressText.textContent = "0%";
+  if (uploadMessage) uploadMessage.textContent = "";
+}
+
 function formatDate(v) {
   if (!v) return "-";
   const d = new Date(v);
@@ -22,6 +72,7 @@ function renderUserDashboard(user) {
     userDashboard.style.display = "none";
     welcomeText.textContent = "";
     userActions.innerHTML = "";
+    resetUploadUI();
     return;
   }
 
@@ -61,6 +112,9 @@ function renderUserDashboard(user) {
     if (resp.ok) renderUserDashboard(resp.data.user);
   });
   userActions.appendChild(refreshBtn);
+
+  // Clear any "previous upload" UI whenever profile data is refreshed.
+  resetUploadUI();
 }
 
 async function apiFetch(path, { method = "GET", body } = {}) {
@@ -144,3 +198,91 @@ document.getElementById("signoutBtn").addEventListener("click", async () => {
     renderUserDashboard(resp.data.user);
   }
 })();
+
+// Profile picture upload
+if (profilePicInput && uploadProfilePicBtn) {
+  profilePicInput.addEventListener("change", () => {
+    const file = profilePicInput.files?.[0] || null;
+    const check = isProfilePicFileAllowed(file);
+    if (!check.ok) {
+      uploadMessage.textContent = check.message;
+      resetUploadUI();
+      return;
+    }
+
+    if (profilePicPreviewHint) profilePicPreviewHint.style.display = "none";
+
+    const reader = new FileReader();
+    reader.onload = () => {
+      if (!profilePicPreviewImg) return;
+      profilePicPreviewImg.src = String(reader.result || "");
+      profilePicPreviewImg.style.display = "block";
+    };
+    reader.readAsDataURL(file);
+
+    uploadMessage.textContent = "";
+  });
+
+  uploadProfilePicBtn.addEventListener("click", async () => {
+    const file = profilePicInput.files?.[0] || null;
+    const check = isProfilePicFileAllowed(file);
+    if (!check.ok) {
+      uploadMessage.textContent = check.message;
+      return;
+    }
+
+    setUploading(true);
+    uploadProgressBar.value = 0;
+    uploadProgressText.textContent = "0%";
+
+    const fd = new FormData();
+    fd.append("profilePic", file);
+
+    const xhr = new XMLHttpRequest();
+    xhr.open("PATCH", "/api/user/me");
+    xhr.withCredentials = true; // use cookie-session JWT
+
+    xhr.upload.onprogress = (e) => {
+      if (!e.lengthComputable) return;
+      const percent = Math.round((e.loaded / e.total) * 100);
+      uploadProgressBar.value = percent;
+      uploadProgressText.textContent = `${percent}%`;
+    };
+
+    xhr.onload = () => {
+      setUploading(false);
+      if (xhr.status >= 200 && xhr.status < 300) {
+        let data;
+        try {
+          data = JSON.parse(xhr.responseText || "{}");
+        } catch {
+          data = {};
+        }
+
+        if (data?.user) {
+          renderUserDashboard(data.user);
+          return;
+        }
+        uploadMessage.textContent = "Upload succeeded, but profile update failed to parse.";
+        return;
+      }
+
+      let data;
+      try {
+        data = JSON.parse(xhr.responseText || "{}");
+      } catch {
+        data = {};
+      }
+      uploadMessage.textContent = data?.message || "Upload failed.";
+      uploadProgressWrap.style.display = "none";
+    };
+
+    xhr.onerror = () => {
+      setUploading(false);
+      uploadProgressWrap.style.display = "none";
+      uploadMessage.textContent = "Network error during upload.";
+    };
+
+    xhr.send(fd);
+  });
+}

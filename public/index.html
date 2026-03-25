@@ -88,6 +88,38 @@
           </div>
         </div>
 
+        <div class="profilePicUpload cardInner">
+          <h3>Update Profile Picture</h3>
+
+          <label>
+            Choose image (JPG/PNG/GIF, max 5MB)
+            <input id="profilePicInput" type="file" accept="image/png,image/jpeg,image/gif" />
+          </label>
+
+          <div class="row wrap" id="profilePicPreviewRow" style="min-height: 56px;">
+            <img
+              id="profilePicPreviewImg"
+              alt="New profile preview"
+              class="avatarThumb"
+              style="display: none;"
+            />
+            <span id="profilePicPreviewHint" class="muted" style="align-self: center;">
+              Select a file to preview.
+            </span>
+          </div>
+
+          <div class="row wrap">
+            <button id="uploadProfilePicBtn" type="button" class="secondary">Upload</button>
+          </div>
+
+          <div id="uploadProgressWrap" style="display: none;">
+            <progress id="uploadProgressBar" max="100" value="0"></progress>
+            <span id="uploadProgressText" class="muted">0%</span>
+          </div>
+
+          <p id="uploadMessage" class="muted"></p>
+        </div>
+
         <div class="boardBox">
           <h3>My Board</h3>
           <p id="boardMessage" class="muted">—</p>
