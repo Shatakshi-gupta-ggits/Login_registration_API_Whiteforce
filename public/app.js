@@ -19,6 +19,104 @@ const uploadProgressBar = document.getElementById("uploadProgressBar");
 const uploadProgressText = document.getElementById("uploadProgressText");
 const uploadMessage = document.getElementById("uploadMessage");
 
+const ACCESS_TOKEN_KEY = "accessToken";
+const sessionExpiryNoticeEl = document.getElementById("sessionExpiryNotice");
+let isAutoLoggingOut = false;
+
+function setStoredAccessToken(token) {
+  if (token) sessionStorage.setItem(ACCESS_TOKEN_KEY, token);
+  else sessionStorage.removeItem(ACCESS_TOKEN_KEY);
+}
+
+function getStoredAccessToken() {
+  try {
+    return sessionStorage.getItem(ACCESS_TOKEN_KEY) || "";
+  } catch {
+    return "";
+  }
+}
+
+function decodeJwtPayload(token) {
+  try {
+    const parts = String(token).split(".");
+    if (parts.length < 2) return null;
+    const b64 = parts[1].replace(/-/g, "+").replace(/_/g, "/");
+    const json = decodeURIComponent(
+      atob(b64)
+        .split("")
+        .map((c) => "%" + c.charCodeAt(0).toString(16).padStart(2, "0"))
+        .join("")
+    );
+    return JSON.parse(json);
+  } catch {
+    return null;
+  }
+}
+
+function getJwtExpMs(token) {
+  const payload = decodeJwtPayload(token);
+  if (!payload || !payload.exp) return null;
+  return Number(payload.exp) * 1000;
+}
+
+function isJwtExpired(token) {
+  const expMs = getJwtExpMs(token);
+  if (!expMs) return false;
+  return Date.now() >= expMs;
+}
+
+function showSessionExpiryNotice(message) {
+  if (!sessionExpiryNoticeEl) return;
+  sessionExpiryNoticeEl.textContent = message || "Your session has expired.";
+  sessionExpiryNoticeEl.style.display = "block";
+}
+
+async function callBackendLogout(token) {
+  try {
+    const headers = {};
+    if (token) headers.Authorization = `Bearer ${token}`;
+    await fetch("/api/auth/signout", {
+      method: "POST",
+      headers,
+      credentials: "include",
+    });
+  } catch {
+    // ignore network errors during logout
+  }
+}
+
+async function autoLogout({ message, redirectTo = "/ui" } = {}) {
+  if (isAutoLoggingOut) return;
+  isAutoLoggingOut = true;
+
+  const token = getStoredAccessToken();
+  showSessionExpiryNotice(message || "Your session has expired. Please sign in again.");
+
+  // Best-effort: ask backend to blacklist token + clear cookie-session.
+  await callBackendLogout(token);
+
+  // Clear local state.
+  setStoredAccessToken(null);
+  renderUserDashboard(null);
+  if (profilePicInput) profilePicInput.value = "";
+
+  setTimeout(() => {
+    window.location.href = redirectTo;
+  }, 1200);
+}
+
+function shouldSkipExpiryCheck(path) {
+  const p = String(path || "");
+  return (
+    p.startsWith("/api/auth/signin") ||
+    p.startsWith("/api/auth/signup") ||
+    p.startsWith("/api/auth/register") ||
+    p.startsWith("/api/auth/login") ||
+    p.startsWith("/api/auth/signout") ||
+    p.startsWith("/api/auth/logout")
+  );
+}
+
 function isProfilePicFileAllowed(file) {
   if (!file) return { ok: false, message: "Please choose an image file first." };
 
@@ -73,6 +171,7 @@ function renderUserDashboard(user) {
     welcomeText.textContent = "";
     userActions.innerHTML = "";
     resetUploadUI();
+    if (sessionExpiryNoticeEl) sessionExpiryNoticeEl.style.display = "none";
     return;
   }
 
@@ -120,6 +219,16 @@ function renderUserDashboard(user) {
 async function apiFetch(path, { method = "GET", body } = {}) {
   const headers = {};
   let payload = body;
+
+  const token = getStoredAccessToken();
+  if (token && !shouldSkipExpiryCheck(path)) {
+    if (isJwtExpired(token)) {
+      await autoLogout({ message: "Session expired. Redirecting to login..." });
+      return { ok: false, status: 401, data: null };
+    }
+    headers.Authorization = `Bearer ${token}`;
+  }
+
   const isFormData = typeof FormData !== "undefined" && body instanceof FormData;
   if (body !== undefined && !isFormData) {
     headers["Content-Type"] = "application/json";
@@ -141,6 +250,11 @@ async function apiFetch(path, { method = "GET", body } = {}) {
     data = await res.text().catch(() => "");
   }
 
+  if (res.status === 401 || res.status === 403) {
+    await autoLogout({ message: "Your session has expired. Redirecting to login..." });
+    return { ok: false, status: res.status, data };
+  }
+
   return { ok: res.ok, status: res.status, data };
 }
 
@@ -159,6 +273,8 @@ document.getElementById("signupForm").addEventListener("submit", async (e) => {
   const signinBody = { email, password };
   const signinResp = await apiFetch("/api/auth/signin", { method: "POST", body: signinBody });
   if (signinResp.ok) {
+    const accessToken = signinResp?.data?.accessToken || signinResp?.data?.token;
+    if (accessToken) setStoredAccessToken(accessToken);
     renderUserDashboard(signinResp.data.user);
     const role = String(signinResp?.data?.user?.role || "").toLowerCase();
     if (role === "admin") {

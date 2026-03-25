@@ -183,6 +183,14 @@ a.button-link:hover { background: rgba(124,92,255,0.28); }
   height: 14px;
 }
 
+.sessionNotice {
+  margin: 14px 0 0;
+  padding: 12px 14px;
+  border-radius: 12px;
+  border: 1px solid rgba(124, 92, 255, 0.35);
+  background: rgba(124, 92, 255, 0.14);
+}
+
 .output {
   margin: 0;
   padding: 12px;
