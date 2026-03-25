@@ -9,6 +9,8 @@ const toUserDTO = (user) => ({
   dob: user.dob,
   monthlySalary: user.monthlySalary,
   role: user.role,
+  isLoggedIn: user.isLoggedIn,
+  lastLoginAt: user.lastLoginAt,
   createdAt: user.createdAt,
   updatedAt: user.updatedAt,
 });

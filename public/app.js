@@ -25,13 +25,11 @@ function renderUserDashboard(user) {
     return;
   }
 
-  const roles = Array.isArray(user.roles) ? user.roles : [];
   const role = String(user.role || "").toLowerCase();
   const isManager = role === "manager";
 
   userDashboard.style.display = "block";
 
-  welcomeText.textContent = `Welcome ${user.name || user.email} (${roles.join(", ") || "user"})`;
   welcomeText.textContent = `Welcome ${user.name || user.email} (${role || "user"})`;
   dashboardTitle.textContent = isManager ? "Manager Dashboard" : "User Dashboard";
 

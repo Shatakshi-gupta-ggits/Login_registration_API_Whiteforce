@@ -34,6 +34,13 @@ function toDate(v) {
   return d.toISOString().slice(0, 10);
 }
 
+function formatDateTime(v) {
+  if (!v) return "-";
+  const d = new Date(v);
+  if (Number.isNaN(d.getTime())) return "-";
+  return d.toISOString().replace("T", " ").slice(0, 19);
+}
+
 function salaryText(v) {
   return v === null || v === undefined || v === "" ? "-" : String(v);
 }
@@ -54,11 +61,17 @@ async function loadUsersTable() {
     const roleText = user.role ? String(user.role) : "-";
 
     tr.innerHTML = `
+      <td>${user.id || "-"}</td>
+      <td>${user.profilePic ? `<img src="${user.profilePic}" alt="pic" class="avatarThumb" />` : "-"}</td>
       <td>${user.name || "-"}</td>
       <td>${user.email || "-"}</td>
       <td>${roleText}</td>
       <td>${toDate(user.dob)}</td>
       <td>${salaryText(user.monthlySalary)}</td>
+      <td>${user.isLoggedIn ? "Yes" : "No"}</td>
+      <td>${formatDateTime(user.lastLoginAt)}</td>
+      <td>${formatDateTime(user.createdAt)}</td>
+      <td>${formatDateTime(user.updatedAt)}</td>
       <td class="row wrap"></td>
     `;
 
@@ -81,6 +94,9 @@ async function loadUsersTable() {
     editBtn.addEventListener("click", async () => {
       const newName = window.prompt("Enter new name", user.name || "");
       if (newName === null) return;
+      const dobDefault = user.dob ? new Date(user.dob).toISOString().slice(0, 10) : "";
+      const newDob = window.prompt("Enter DOB (yyyy-mm-dd, blank to clear)", dobDefault);
+      if (newDob === null) return;
       const newSalary = window.prompt(
         "Enter new salary (blank to clear)",
         user.monthlySalary === null || user.monthlySalary === undefined ? "" : String(user.monthlySalary)
@@ -88,6 +104,7 @@ async function loadUsersTable() {
       if (newSalary === null) return;
       const payload = {
         name: newName.trim(),
+        dob: newDob.trim(),
         monthlySalary: newSalary.trim(),
       };
       const updateResp = await api(`/api/admin/users/${user.id}`, { method: "PATCH", body: payload });
@@ -134,11 +151,17 @@ document.getElementById("searchForm").addEventListener("submit", async (e) => {
     resp.data.items.forEach((u) => {
       const tr = document.createElement("tr");
       tr.innerHTML = `
+        <td>${u.id || "-"}</td>
+        <td>${u.profilePic ? `<img src="${u.profilePic}" alt="pic" class="avatarThumb" />` : "-"}</td>
         <td>${u.name || "-"}</td>
         <td>${u.email || "-"}</td>
         <td>${u.role ? String(u.role) : "-"}</td>
         <td>${toDate(u.dob)}</td>
         <td>${salaryText(u.monthlySalary)}</td>
+        <td>${u.isLoggedIn ? "Yes" : "No"}</td>
+        <td>${formatDateTime(u.lastLoginAt)}</td>
+        <td>${formatDateTime(u.createdAt)}</td>
+        <td>${formatDateTime(u.updatedAt)}</td>
         <td>-</td>
       `;
       usersTableBody.appendChild(tr);

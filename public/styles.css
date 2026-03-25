@@ -136,6 +136,15 @@ a.button-link:hover { background: rgba(124,92,255,0.28); }
   background: rgba(0,0,0,0.2);
 }
 
+.avatarThumb {
+  width: 40px;
+  height: 40px;
+  border-radius: 10px;
+  object-fit: cover;
+  border: 1px solid var(--border);
+  background: rgba(0,0,0,0.2);
+}
+
 .profileFields p {
   margin: 6px 0;
 }
