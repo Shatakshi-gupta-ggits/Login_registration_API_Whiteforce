@@ -4,6 +4,7 @@ const db = require("../app/models");
 const dbConfig = require("../app/config/db.config");
 
 const User = db.user;
+const bcrypt = require("bcryptjs");
 
 async function main() {
   // Inject a temporary pre-save hook to confirm middleware is running.
@@ -46,8 +47,28 @@ async function main() {
   console.log("stored length:", pass.length);
   console.log("startsWith $2:", pass.startsWith("$2"));
 
+  // Now save a user with an already-hashed password to verify schema/save behavior.
+  const email2 = `hash_test_hashed_${Date.now()}@example.com`;
+  const hashedPass = await bcrypt.hash("Admin@123", 8);
+  const u2 = new User({
+    name: "Hash Test 2",
+    email: email2,
+    password: hashedPass,
+    role: "employee",
+    salary: 0,
+    isLoggedIn: false,
+    lastLoginAt: null,
+  });
+  await u2.save();
+
+  const saved2 = await User.findOne({ email: email2 }).exec();
+  const pass2 = String(saved2?.password || "");
+  console.log("manual-hashed stored prefix:", pass2.slice(0, 3));
+  console.log("manual-hashed startsWith $2:", pass2.startsWith("$2"));
+
   // Cleanup
   await User.findByIdAndDelete(saved._id).exec();
+  if (saved2?._id) await User.findByIdAndDelete(saved2._id).exec();
   await db.mongoose.disconnect();
 }
 
