@@ -69,9 +69,10 @@ User.schema.virtual("monthlySalary")
   });
 
 // Hash password on save if it's a plain password (avoid double-hashing bcrypt hashes).
+// Important: some scripts set password values that Mongoose may not mark as "modified",
+// so we hash based on the value format rather than `isModified("password")`.
 User.schema.pre("save", async function (next) {
   try {
-    if (!this.isModified("password")) return next();
     if (!this.password) return next();
 
     const pwd = String(this.password);
