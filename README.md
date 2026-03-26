@@ -16,12 +16,44 @@ Backend-first Node.js + Express + MongoDB project with minimal frontend and role
 ## Setup
 1. Copy `.env.example` to `.env`
 2. Fill MongoDB connection string with DB name in URI path (example: `loginreg_db`)
-3. Install and run:
-   - `npm install`
-   - `npm start`
+3. (Recommended) Seed/refresh demo users (this also clears non-demo users so Admin dashboard stays clean):
+   - `node scripts/reset-demo-data.js`
+4. Install and run:
+   - Backend: `npm install` then `npm start` (from repo root)
+   - Frontend: `cd frontend` then `npm install` then `npm run dev`
 
-Server default: `http://localhost:3000`  
-UI for testing: `http://localhost:3000/ui`
+Backend listens on: `http://localhost:${PORT}` (check your `.env`; in this project it's `3004`)
+Vite frontend usually runs at: `http://localhost:5173` (or `5174` if `5173` is busy)
+
+## Demo Credentials (for Admin Dashboard)
+These accounts are seeded by `node scripts/reset-demo-data.js`:
+- Admin: `admin@example.com` / `Admin@123`
+- Manager: `manager@example.com` / `Manager@123`
+- Employee: `employee@example.com` / `Employee@123`
+
+## Run Commands (Full Project)
+Run in two terminals:
+1. Backend (Express + MongoDB):
+   - `cd C:\Users\HP\Downloads\day1Task\node-js-express-login-mongodb-master`
+   - `node scripts/reset-demo-data.js`
+   - `npm start`
+2. Frontend (React + Vite):
+   - `cd C:\Users\HP\Downloads\day1Task\node-js-express-login-mongodb-master\frontend`
+   - `npm run dev`
+
+## Simple End-to-End Flow (Admin Dashboard)
+1. Start backend + frontend using the commands above.
+2. Open the frontend: `http://localhost:5173/` (or `5174`).
+3. Login with the Admin credentials:
+   - `admin@example.com` / `Admin@123`
+4. After login, you will be routed to the admin dashboard page:
+   - `"/admin-dashboard"`
+5. The admin dashboard loads users from:
+   - `GET /api/admin/users`
+6. You can then manage:
+   - promote users to manager (`PATCH /api/admin/users/:id/promote-manager`)
+   - edit user details (`PUT /api/admin/users/:id` etc.)
+   - delete users (`DELETE /api/admin/users/:id`)
 
 ## Core APIs
 
@@ -50,9 +82,9 @@ UI for testing: `http://localhost:3000/ui`
   - Admin accounts cannot be deleted from this endpoint
 
 ## How to access `/admin`
-There is no default admin user seeded automatically.  
-1. Register/login from `/ui` first.
-2. Promote/create admin (one-time) using:
-   - `npm run make-admin -- your-email@example.com yourPassword "Your Name"`
-3. Login again from `/ui` with that account.
-4. Open `/admin` to access the admin panel.
+Admin UI is accessed via the frontend route `"/admin-dashboard"` after logging in as an admin.
+
+If you are using the Express-served static pages instead, the admin panel can also be opened at:
+`http://localhost:${PORT}/admin`
+
+In both cases, login using the seeded demo admin credentials (see “Demo Credentials” above).
