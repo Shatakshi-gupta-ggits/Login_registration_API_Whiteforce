@@ -31,6 +31,21 @@ export function createAdminService(baseURL) {
       return res.data.user;
     },
 
+    updateUserDetails: async (userId, fd) => {
+      const res = await http.put(`/api/admin/users/${userId}`, fd, {
+        headers: { "Content-Type": "multipart/form-data" },
+      });
+      return res.data.user;
+    },
+
+    assignManager: async (userId, managerId) => {
+      // backend expects `managerId: ""` to clear assignment (becomes null).
+      const res = await http.put(`/api/admin/users/${userId}/manager`, {
+        managerId: managerId || "",
+      });
+      return res.data.user;
+    },
+
     deleteUser: async (userId) => {
       const res = await http.delete(`/api/admin/users/${userId}`);
       return res.data;

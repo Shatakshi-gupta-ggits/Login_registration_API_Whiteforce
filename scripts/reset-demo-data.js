@@ -77,9 +77,21 @@ async function main() {
     console.log(`Seeded demo user: ${u.email} (${u.role})`);
   }
 
-  // Quick sanity check: bcrypt compare on stored admin password.
+  // Seed hierarchy:
+  // - admin sits "above" (role-based access)
+  // - manager can only see employees where employee.managerId === manager._id
   const admin = await User.findOne({ email: "admin@example.com" }).exec();
-  if (!admin) throw new Error("Admin demo user missing after reset.");
+  const manager = await User.findOne({ email: "manager@example.com" }).exec();
+  const employee = await User.findOne({ email: "employee@example.com" }).exec();
+
+  if (!admin || !manager || !employee) throw new Error("Demo users missing after reset.");
+
+  employee.managerId = manager._id;
+  admin.managerId = null;
+  manager.managerId = null;
+  await Promise.all([admin.save(), manager.save(), employee.save()]);
+
+  // Quick sanity check: bcrypt compare on stored admin password.
   const ok = bcrypt.compareSync("Admin@123", admin.password);
   if (!ok) throw new Error("Admin demo password hashing mismatch after reset.");
   console.log("Sanity check passed: admin password matches.");

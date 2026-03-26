@@ -29,6 +29,11 @@ module.exports = function (app) {
 
   // Task 3: admin-only management endpoints
   app.put(
+    "/api/admin/users/:id/manager",
+    [authJwt.verifyToken, authJwt.isAdmin],
+    controller.assignManagerByAdmin
+  );
+  app.put(
     "/api/admin/users/:id/role",
     [authJwt.verifyToken, authJwt.isAdmin],
     controller.updateUserRoleByAdmin

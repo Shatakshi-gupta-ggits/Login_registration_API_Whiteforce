@@ -10,6 +10,7 @@ const toUserDTO = (user) => ({
   salary: user.salary,
   monthlySalary: user.monthlySalary, // backward compatibility
   role: user.role,
+  managerId: user.managerId ? user.managerId.toString() : null,
   isLoggedIn: user.isLoggedIn,
   lastLoginAt: user.lastLoginAt,
   createdAt: user.createdAt,
@@ -286,6 +287,43 @@ exports.updateUserSalaryByAdmin = async (req, res) => {
     return res.status(200).send({ user: toUserDTO(updated) });
   } catch (err) {
     return res.status(500).send({ message: err.message || "Update salary failed." });
+  }
+};
+
+exports.assignManagerByAdmin = async (req, res) => {
+  try {
+    const targetUserId = req.params.id;
+    let { managerId } = req.body || {};
+    managerId = managerId === "" || managerId === undefined ? null : String(managerId);
+
+    const target = await User.findById(targetUserId).exec();
+    if (!target) return res.status(404).send({ message: "User not found." });
+
+    // Only employees can be assigned under a manager.
+    if (String(target.role || "").toLowerCase() !== "employee") {
+      return res.status(400).send({ message: "Only employees can be assigned a manager." });
+    }
+
+    if (!managerId) {
+      target.managerId = null;
+      await target.save();
+      const updated = await User.findById(targetUserId).exec();
+      return res.status(200).send({ user: toUserDTO(updated) });
+    }
+
+    const manager = await User.findById(managerId).exec();
+    if (!manager) return res.status(404).send({ message: "Manager user not found." });
+    if (String(manager.role || "").toLowerCase() !== "manager") {
+      return res.status(400).send({ message: "Selected user is not a manager." });
+    }
+
+    target.managerId = manager._id;
+    await target.save();
+
+    const updated = await User.findById(targetUserId).exec();
+    return res.status(200).send({ user: toUserDTO(updated) });
+  } catch (err) {
+    return res.status(500).send({ message: err.message || "Assign manager failed." });
   }
 };
 

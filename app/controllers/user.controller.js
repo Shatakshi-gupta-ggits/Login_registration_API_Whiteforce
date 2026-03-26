@@ -44,12 +44,18 @@ exports.managerTeam = async (req, res) => {
   try {
     const managerId = req.userId;
 
-    // If your DB has a legacy `managerId` field, this will use it.
-    // Otherwise, it falls back to all employees (still view-only).
-    let employees = await User.find({ role: "employee", managerId }).exec();
-    if (!employees || employees.length === 0) {
-      employees = await User.find({ role: "employee" }).exec();
-    }
+    // Enforce hierarchy strictly: a manager can only see employees whose managerId matches them.
+    const mongoose = require("mongoose");
+    const managerObjectId = managerId ? new mongoose.Types.ObjectId(managerId) : null;
+
+    const employees = await User.find({
+      role: "employee",
+      managerId: managerObjectId,
+    })
+      .select({ name: 1, email: 1, dob: 1, profilePic: 1 })
+      .sort({ createdAt: -1 })
+      .lean()
+      .exec();
 
     const sanitized = employees.map((u) => ({
       id: u._id,

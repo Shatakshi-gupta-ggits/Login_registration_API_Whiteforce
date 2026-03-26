@@ -49,9 +49,20 @@ const userSchema = new mongoose.Schema(
       type: Date,
       default: null,
     },
+    // Tree structure: employees are assigned to exactly one manager.
+    // Admins sit "above" managers conceptually (via role), but the enforced hierarchy is managerId -> employees.
+    managerId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "User",
+      default: null,
+      index: true,
+    },
   },
   { timestamps: true }
 );
+
+// Optimize hierarchy lookups: managers query employees by (role='employee', managerId=<id>).
+userSchema.index({ role: 1, managerId: 1 });
 
 // Backward compatibility: old UI/controllers used `monthlySalary`.
 // Keep it as a virtual alias that maps to the canonical `salary` field.

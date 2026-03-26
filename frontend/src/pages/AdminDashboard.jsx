@@ -143,6 +143,21 @@ export default function AdminDashboard() {
   // Modals state
   const [roleModal, setRoleModal] = useState({ open: false, userId: "", role: "employee" });
   const [salaryModal, setSalaryModal] = useState({ open: false, userId: "", salary: "" });
+  const [detailsModal, setDetailsModal] = useState({
+    open: false,
+    userId: "",
+    name: "",
+    email: "",
+    dob: "",
+    profilePic: null,
+  });
+  const [assignManagerModal, setAssignManagerModal] = useState({
+    open: false,
+    employeeId: "",
+    managerId: "",
+  });
+  const [managerOptions, setManagerOptions] = useState([]);
+  const [loadingManagers, setLoadingManagers] = useState(false);
   const [newUserModalOpen, setNewUserModalOpen] = useState(false);
 
   const [newUserForm, setNewUserForm] = useState({
@@ -219,6 +234,25 @@ export default function AdminDashboard() {
     }
   }
 
+  async function openAssignManagerModal(employee) {
+    setLoadingManagers(true);
+    setManagerOptions([]);
+    try {
+      const mgrRes = await adminApi.getUsers({ page: 1, limit: 1000, role: "manager" });
+      const managers = mgrRes?.items || [];
+      setManagerOptions(managers);
+      setAssignManagerModal({
+        open: true,
+        employeeId: employee?.id || "",
+        managerId: employee?.managerId ? String(employee.managerId) : "",
+      });
+    } catch (e) {
+      setError(e.message || "Failed to load managers.");
+    } finally {
+      setLoadingManagers(false);
+    }
+  }
+
   async function onDeleteUser(userId) {
     const ok = window.confirm("Delete this user?");
     if (!ok) return;
@@ -237,6 +271,14 @@ export default function AdminDashboard() {
 
   function closeSalaryModal() {
     setSalaryModal({ open: false, userId: "", salary: "" });
+  }
+
+  function closeDetailsModal() {
+    setDetailsModal({ open: false, userId: "", name: "", email: "", dob: "", profilePic: null });
+  }
+
+  function closeAssignManagerModal() {
+    setAssignManagerModal({ open: false, employeeId: "", managerId: "" });
   }
 
   function renderModalBase({ open, title, children, onClose }) {
@@ -463,10 +505,35 @@ export default function AdminDashboard() {
                           <button
                             type="button"
                             className="secondary"
+                            onClick={() =>
+                              setDetailsModal({
+                                open: true,
+                                userId: u.id,
+                                name: u.name || "",
+                                email: u.email || "",
+                                dob: u.dob ? new Date(u.dob).toISOString().slice(0, 10) : "",
+                                profilePic: null,
+                              })
+                            }
+                          >
+                            Edit Details
+                          </button>
+                          <button
+                            type="button"
+                            className="secondary"
                             onClick={() => setSalaryModal({ open: true, userId: u.id, salary: String(u.salary ?? 0) })}
                           >
                             Edit Salary
                           </button>
+                          {String(u.role || "").toLowerCase() === "employee" ? (
+                            <button
+                              type="button"
+                              className="secondary"
+                              onClick={() => openAssignManagerModal(u)}
+                            >
+                              Assign Manager
+                            </button>
+                          ) : null}
                           <button type="button" className="secondary" onClick={() => onDeleteUser(u.id)}>
                             Delete
                           </button>
@@ -706,6 +773,119 @@ export default function AdminDashboard() {
               </label>
               <button type="submit" className="secondary">
                 Submit
+              </button>
+            </div>
+          </form>
+        ),
+      })}
+
+      {/* Details modal */}
+      {renderModalBase({
+        open: detailsModal.open,
+        title: "Edit User Details",
+        onClose: closeDetailsModal,
+        children: (
+          <form
+            onSubmit={async (e) => {
+              e.preventDefault();
+              try {
+                const fd = new FormData();
+                fd.append("name", detailsModal.name);
+                fd.append("email", detailsModal.email);
+                // If user cleared DOB input, send empty string so backend sets dob = null.
+                fd.append("dob", detailsModal.dob || "");
+                if (detailsModal.profilePic) fd.append("profilePic", detailsModal.profilePic);
+
+                await adminApi.updateUserDetails(detailsModal.userId, fd);
+                pushToast("success", "User details updated");
+                closeDetailsModal();
+                await loadUsersAgain();
+              } catch (err) {
+                pushToast("error", err.message || "Failed to update user details.");
+              }
+            }}
+          >
+            <div style={{ display: "grid", gap: 10 }}>
+              <label>
+                Name
+                <input
+                  value={detailsModal.name}
+                  onChange={(e) => setDetailsModal((m) => ({ ...m, name: e.target.value }))}
+                  style={{ width: "100%", padding: 10 }}
+                />
+              </label>
+              <label>
+                Email
+                <input
+                  value={detailsModal.email}
+                  onChange={(e) => setDetailsModal((m) => ({ ...m, email: e.target.value }))}
+                  style={{ width: "100%", padding: 10 }}
+                />
+              </label>
+              <label>
+                DOB
+                <input
+                  type="date"
+                  value={detailsModal.dob}
+                  onChange={(e) => setDetailsModal((m) => ({ ...m, dob: e.target.value }))}
+                  style={{ width: "100%", padding: 10 }}
+                />
+              </label>
+              <label>
+                Profile Picture
+                <input
+                  type="file"
+                  accept="image/*"
+                  onChange={(e) => setDetailsModal((m) => ({ ...m, profilePic: e.target.files?.[0] || null }))}
+                  style={{ width: "100%" }}
+                />
+              </label>
+              <button type="submit" className="secondary">
+                Save Details
+              </button>
+            </div>
+          </form>
+        ),
+      })}
+
+      {/* Assign Manager modal */}
+      {renderModalBase({
+        open: assignManagerModal.open,
+        title: "Assign Manager (Employee -> ManagerId)",
+        onClose: closeAssignManagerModal,
+        children: (
+          <form
+            onSubmit={async (e) => {
+              e.preventDefault();
+              try {
+                await adminApi.assignManager(assignManagerModal.employeeId, assignManagerModal.managerId || "");
+                pushToast("success", "Manager assignment updated");
+                closeAssignManagerModal();
+                await loadUsersAgain();
+              } catch (err) {
+                pushToast("error", err.message || "Failed to assign manager.");
+              }
+            }}
+          >
+            <div style={{ display: "grid", gap: 10 }}>
+              <label>
+                Manager
+                <select
+                  value={assignManagerModal.managerId}
+                  onChange={(ev) => setAssignManagerModal((m) => ({ ...m, managerId: ev.target.value }))}
+                  style={{ width: "100%", padding: 10 }}
+                  disabled={loadingManagers}
+                >
+                  <option value="">None</option>
+                  {managerOptions.map((m) => (
+                    <option key={m.id} value={m.id}>
+                      {m.name}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <button type="submit" className="secondary" disabled={loadingManagers}>
+                Save Assignment
               </button>
             </div>
           </form>
